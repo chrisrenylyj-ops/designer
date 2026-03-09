@@ -34,6 +34,42 @@ npm run preview
 
 如需本地先构建再手动上传，可只上传 `dist` 目录内容（约 1MB），同样满足 25MB 限制。
 
+## 部署到阿里云 OSS
+
+### 方式一：GitHub Actions 自动部署（推荐）
+
+1. **在阿里云创建 OSS 存储桶**
+   - 登录 [阿里云 OSS 控制台](https://oss.console.aliyun.com/)
+   - 创建 Bucket，读写权限选 **公共读**（或私有 + 配合 CDN）
+   - 在 Bucket 的 **基础设置** 里开启 **静态页面**：默认首页 `index.html`，默认 404 页 `404.html`
+   - 记下 **Bucket 名称** 和 **Endpoint**（如 `oss-cn-hangzhou.aliyuncs.com`）
+
+2. **创建 AccessKey 并配置 GitHub Secrets**
+   - 阿里云控制台 → 右上角头像 → **AccessKey 管理** → 创建 AccessKey（保存 ID 和 Secret）
+   - 在 GitHub 仓库 **Settings → Secrets and variables → Actions** 里新增：
+     - `OSS_ACCESS_KEY_ID`：AccessKey ID  
+     - `OSS_ACCESS_KEY_SECRET`：AccessKey Secret  
+     - `OSS_BUCKET`：Bucket 名称  
+     - `OSS_ENDPOINT`：Endpoint（如 `oss-cn-hangzhou.aliyuncs.com`）
+
+3. **触发部署**
+   - 推送到 `main` 或 `master` 分支后，**Actions** 里 “Deploy to Aliyun OSS” 会自动运行；也可在 Actions 页手动 **Run workflow**。
+
+4. **访问网站**
+   - 若未绑定自定义域名：`http://<Bucket名>.<Endpoint>/`  
+     例如：`http://your-bucket.oss-cn-hangzhou.aliyuncs.com/`
+   - 若在 OSS 控制台绑定了自己的域名并解析好，则用该域名访问；可配合 CDN 和 HTTPS 证书。
+
+### 方式二：本地构建后手动上传
+
+```bash
+# 构建（根路径，适合 OSS）
+BASE_PATH=/ npm run build
+cp dist/index.html dist/404.html
+```
+
+然后在 OSS 控制台或使用 [ossutil](https://help.aliyun.com/document_detail/120075.html) 将 `dist` 目录下**所有文件**上传到 Bucket 根目录，并在 Bucket 中开启静态页面（默认首页 `index.html`，默认 404 页 `404.html`）。
+
 ## Features
 
 1. **Compress** — Drag & drop or select JPEG/PNG/WebP (up to 20MB). Adjust quality slider, then "Compress Image" to download.

@@ -1,0 +1,42 @@
+# 推送到 main/master 时构建并部署到阿里云 OSS
+name: Deploy to Aliyun OSS
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install
+        run: npm ci
+
+      # OSS 使用根路径，不需要 /仓库名/
+      - name: Build
+        run: npm run build
+        env:
+          BASE_PATH: /
+
+      - name: SPA 404 fallback
+        run: cp dist/index.html dist/404.html
+
+      - name: Upload to Aliyun OSS
+        uses: fangbinwei/aliyun-oss-website-action@v1
+        with:
+          accessKeyId: ${{ secrets.OSS_ACCESS_KEY_ID }}
+          accessKeySecret: ${{ secrets.OSS_ACCESS_KEY_SECRET }}
+          bucket: ${{ secrets.OSS_BUCKET }}
+          endpoint: ${{ secrets.OSS_ENDPOINT }}
+          folder: dist
+          indexPage: index.html
+          notFoundPage: 404.html
