@@ -31,8 +31,8 @@ jobs:
 
       - name: Set BASE_PATH
         run: |
-          if [ "${{ github.event.repository.name }}" = "${{ github.repository_owner }}.github.io" ]; then
-            echo "BASE_PATH=/" >> $GITHUB_ENV
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || [ "${{ vars.USE_CUSTOM_DOMAIN }}" = "true" ]; then
+          echo "BASE_PATH=/" >> $GITHUB_ENV
           else
             echo "BASE_PATH=/${{ github.event.repository.name }}/" >> $GITHUB_ENV
           fi
