@@ -42,7 +42,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       <div className="flex flex-col items-start w-full max-w-[1200px] px-6 flex-1">
         <header className="flex items-center justify-between py-6 w-full px-[176px]">
           <Link to="/" className="flex items-center shrink-0" aria-label="Home">
-          <img src={\{import.meta.env.BASE_URL}logo.svg\`}` （即整句是：`<img src={\`{import.meta.env.BASE_URL}logo.svg`} alt="" className="h-9 w-8 block" width={32} height={36} />`）
+            <img src={`${import.meta.env.BASE_URL}logo.svg`} alt="" className="h-9 w-8 block" width={32} height={36} />
           </Link>
           <nav
             ref={navRef}
