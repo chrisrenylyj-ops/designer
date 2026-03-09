@@ -1,10 +1,11 @@
+# 推送到 main/master 时自动构建并部署到 GitHub Pages
 name: Deploy to GitHub Pages
 
 on:
   push:
     branches: [main, master]
   workflow_dispatch:
-  
+
 permissions:
   contents: read
   pages: write
@@ -32,7 +33,9 @@ jobs:
       - name: Set BASE_PATH
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ] || [ "${{ vars.USE_CUSTOM_DOMAIN }}" = "true" ]; then
-          echo "BASE_PATH=/" >> $GITHUB_ENV
+            echo "BASE_PATH=/" >> $GITHUB_ENV
+          elif [ "${{ github.event.repository.name }}" = "${{ github.repository_owner }}.github.io" ]; then
+            echo "BASE_PATH=/" >> $GITHUB_ENV
           else
             echo "BASE_PATH=/${{ github.event.repository.name }}/" >> $GITHUB_ENV
           fi
@@ -42,7 +45,7 @@ jobs:
         env:
           BASE_PATH: ${{ env.BASE_PATH }}
 
-      - name: Fix SPA 404
+      - name: Fix SPA 404 (serve index for unknown paths)
         run: cp dist/index.html dist/404.html
 
       - name: Setup Pages

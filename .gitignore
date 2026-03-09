@@ -1,0 +1,24 @@
+# Dependencies — 不提交到 Git，上传后他人 clone 再 npm install
+node_modules/
+
+# 构建产物 — 由 CI 或本地 npm run build 生成，不必提交
+dist/
+dist-ssr/
+.vite/
+*.local
+
+# 环境与本地配置
+.env
+.env.*
+!.env.example
+
+# 编辑器与系统
+.DS_Store
+*.log
+npm-debug.log*
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# 依赖锁文件（可选：若希望锁版本可保留 package-lock.json）
+# package-lock.json
