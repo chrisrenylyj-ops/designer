@@ -30,6 +30,7 @@ jobs:
       - name: Install
         run: npm ci
 
+      # 项目站: /仓库名/；用户站: /；手动运行或 USE_CUSTOM_DOMAIN 时用 /
       - name: Set BASE_PATH
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ] || [ "${{ vars.USE_CUSTOM_DOMAIN }}" = "true" ]; then
@@ -39,6 +40,8 @@ jobs:
           else
             echo "BASE_PATH=/${{ github.event.repository.name }}/" >> $GITHUB_ENV
           fi
+      - name: Show BASE_PATH (debug)
+        run: echo "BASE_PATH=$BASE_PATH"
 
       - name: Build
         run: npm run build
