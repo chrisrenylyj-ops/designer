@@ -14,6 +14,8 @@ type DropZoneProps = {
   accept?: string
   maxSize?: number
   onSelect: (file: File) => void
+  onSelectMany?: (files: File[]) => void
+  multiple?: boolean
   onDrop?: (file: File) => void
   disabled?: boolean
   /** When set, the card shows this image preview instead of the upload UI */
@@ -26,29 +28,49 @@ export default function DropZone({
   accept = 'image/jpeg,image/png,image/webp',
   maxSize = 20 * 1024 * 1024,
   onSelect,
+  onSelectMany,
+  multiple,
   onDrop,
   disabled,
   previewUrl,
 }: DropZoneProps) {
-  const handleFile = useCallback(
-    (file: File) => {
-      if (file.size > maxSize) return
-      onSelect(file)
-      onDrop?.(file)
+  const acceptList = accept.split(',').map((t) => t.trim()).filter(Boolean)
+
+  const isAccepted = useCallback((file: File) => {
+    if (acceptList.length === 0) return true
+    if (acceptList.includes(file.type)) return true
+    // Fallback for patterns like image/*
+    if (acceptList.some((t) => t.endsWith('/*') && file.type.startsWith(t.replace('/*', '/')))) return true
+    return false
+  }, [acceptList])
+
+  const handleFiles = useCallback(
+    (files: File[]) => {
+      const ok = files.filter((f) => f.size <= maxSize && isAccepted(f))
+      if (ok.length === 0) return
+
+      if (multiple && onSelectMany) {
+        onSelectMany(ok)
+        return
+      }
+
+      const first = ok[0]
+      onSelect(first)
+      onDrop?.(first)
     },
-    [maxSize, onSelect, onDrop]
+    [isAccepted, maxSize, multiple, onDrop, onSelect, onSelectMany]
   )
 
   const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) handleFile(file)
+    const list = Array.from(e.target.files ?? [])
+    if (list.length) handleFiles(list)
     e.target.value = ''
   }
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault()
-    const file = e.dataTransfer.files?.[0]
-    if (file && accept.split(',').some((t) => file.type.match(t.trim().replace('image/', '')))) handleFile(file)
+    const list = Array.from(e.dataTransfer.files ?? [])
+    if (list.length) handleFiles(list)
   }
 
   const handleDragOver = (e: React.DragEvent) => e.preventDefault()
@@ -76,6 +98,7 @@ export default function DropZone({
                 <input
                   type="file"
                   accept={accept}
+                  multiple={multiple}
                   onChange={onFileChange}
                   className="sr-only"
                   disabled={disabled}
@@ -99,6 +122,7 @@ export default function DropZone({
               <input
                 type="file"
                 accept={accept}
+                multiple={multiple}
                 onChange={onFileChange}
                 className="sr-only"
                 disabled={disabled}

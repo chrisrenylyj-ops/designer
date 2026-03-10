@@ -34,6 +34,56 @@ npm run preview
 
 如需本地先构建再手动上传，可只上传 `dist` 目录内容（约 1MB），同样满足 25MB 限制。
 
+## 自定义域名（GitHub Pages）
+
+若希望用自己域名（如 `www.example.com`）访问站点，按下面做。
+
+### 1. 在 GitHub 填写自定义域名
+
+1. 打开仓库 **Settings → Pages**。
+2. 在 **Custom domain** 输入框填你的域名（例如 `www.example.com` 或 `example.com`）。
+3. 点 **Save**。  
+   （若提示 DNS 未生效，先完成下面第 2 步再回来点 **Save** 或 **Enforce HTTPS**。）
+
+### 2. 在域名服务商配置 DNS
+
+到你购买域名的平台（阿里云、腾讯云、Cloudflare、GoDaddy 等）添加解析：
+
+**若使用子域名（推荐，如 www.example.com）：**
+
+| 类型 | 主机记录 | 记录值 |
+|------|----------|--------|
+| CNAME | www | chrisrenylyj-ops.github.io |
+
+**若使用根域名（example.com）：**
+
+| 类型 | 主机记录 | 记录值 |
+|------|----------|--------|
+| A | @ | 185.199.108.153 |
+| A | @ | 185.199.109.153 |
+| A | @ | 185.199.110.153 |
+| A | @ | 185.199.111.153 |
+
+（主机记录为 `@` 表示根域名；四条 A 记录都要加。）
+
+保存后等待几分钟到几十分钟生效（可多次刷新 Pages 里的 “Custom domain” 检查）。
+
+### 3. 让站点用根路径构建（避免资源 404）
+
+当前站点部署在 `https://用户名.github.io/仓库名/` 下，资源路径带 `/designer/`。换成自定义域名后，站点在域名根路径打开，必须用**根路径**构建，否则 JS/CSS 会 404。
+
+1. 仓库 **Settings → Secrets and variables → Actions**。
+2. 点 **Variables**，**New repository variable**：
+   - Name：`USE_CUSTOM_DOMAIN`
+   - Value：`true`
+3. 保存后，到 **Actions** 里重新跑一次 **Deploy to GitHub Pages**（或随意改一个文件推送），新的部署会用根路径构建，自定义域名即可正常显示。
+
+### 4. 开启 HTTPS（可选）
+
+DNS 生效后，回到 **Settings → Pages**，若 **Enforce HTTPS** 可勾选，勾选即可。GitHub 会为你的域名申请证书，访问时自动走 HTTPS。
+
+**说明**：开启自定义域名并设置 `USE_CUSTOM_DOMAIN=true` 后，`https://chrisrenylyj-ops.github.io/designer/` 可能无法正常打开（路径不一致）。若需同时保留 github.io 链接，可去掉 `USE_CUSTOM_DOMAIN` 变量，但自定义域名下需用「仅重定向到 github.io」等方式，或只保留一种访问方式。
+
 ## 部署到阿里云 OSS
 
 ### 方式一：GitHub Actions 自动部署（推荐）
