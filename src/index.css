@@ -9,57 +9,7 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-@keyframes page-bg-float {
-  0% { transform: translate3d(-2%, -2%, 0) scale(1.02); }
-  50% { transform: translate3d(2%, 2%, 0) scale(1.06); }
-  100% { transform: translate3d(-2%, -2%, 0) scale(1.02); }
-}
-
-/* 轻微动态流动背景（仅对 4 个功能页） */
-.bg-page-compress,
-.bg-page-convert,
-.bg-page-360,
-.bg-page-lottie {
-  position: relative;
-  isolation: isolate;
-}
-
-.bg-page-compress::before,
-.bg-page-convert::before,
-.bg-page-360::before,
-.bg-page-lottie::before {
-  content: "";
-  position: absolute;
-  inset: -20%;
-  z-index: -1;
-  pointer-events: none;
-  opacity: 0.55;
-  filter: blur(28px);
-  background-image:
-    radial-gradient(circle at 15% 25%, rgba(255, 255, 255, 0.45) 0%, transparent 45%),
-    radial-gradient(circle at 85% 20%, rgba(255, 255, 255, 0.35) 0%, transparent 50%),
-    radial-gradient(circle at 70% 80%, rgba(255, 255, 255, 0.28) 0%, transparent 55%),
-    radial-gradient(circle at 20% 85%, rgba(255, 255, 255, 0.25) 0%, transparent 55%);
-  animation: page-bg-float 9s ease-in-out infinite;
-  will-change: transform;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .bg-page-compress,
-  .bg-page-convert,
-  .bg-page-360,
-  .bg-page-lottie {
-    animation: none;
-  }
-  .bg-page-compress::before,
-  .bg-page-convert::before,
-  .bg-page-360::before,
-  .bg-page-lottie::before {
-    animation: none;
-  }
-}
-
-/* 4 个页面渐变背景（多层线性 + 径向，低饱和、结构更复杂） */
+/* 4 个页面渐变背景（多层线性 + 径向，低饱和、结构更复杂），已恢复为静态背景 */
 .bg-page-compress {
   background-color: #faf9fc;
   background-image:
