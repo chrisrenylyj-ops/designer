@@ -1,10 +1,12 @@
-import { useState, useCallback, useEffect, useRef } from 'react'
+import { useMemo, useState, useCallback, useEffect, useRef } from 'react'
 import DropZone from '../components/DropZone'
 
 const ESTIMATE_DEBOUNCE_MS = 300
 
 const ACCEPT = 'image/jpeg,image/png,image/webp'
 const MAX_MB = 20
+
+type Item = { id: string; file: File; previewUrl: string }
 
 function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`
@@ -47,81 +49,177 @@ function downloadBlob(blob: Blob, name: string) {
 }
 
 export default function Compress() {
-  const [file, setFile] = useState<File | null>(null)
+  const [items, setItems] = useState<Item[]>([])
   const [quality, setQuality] = useState(80)
-  const [compressing, setCompressing] = useState(false)
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
-  const [compressedSize, setCompressedSize] = useState<number | null>(null)
-  const [estimatedSize, setEstimatedSize] = useState<number | null>(null)
+  const [compressing, setCompressing] = useState<{ running: boolean; done: number; total: number }>({ running: false, done: 0, total: 0 })
+  const [estimatedTotalSize, setEstimatedTotalSize] = useState<number | null>(null)
   const [estimating, setEstimating] = useState(false)
   const estimateVersionRef = useRef(0)
 
+  const previewRef = useRef<string[]>([])
+  previewRef.current = items.map((i) => i.previewUrl)
+
+  const previewUrl = items[0]?.previewUrl ?? null
+  const total = items.length
+
+  const originalTotalSize = useMemo(() => items.reduce((sum, it) => sum + it.file.size, 0), [items])
+
+  const toItems = useCallback((files: File[]) => {
+    return files.map((file) => ({
+      id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      file,
+      previewUrl: URL.createObjectURL(file),
+    }))
+  }, [])
+
+  const revokeAll = useCallback((urls: string[]) => {
+    urls.forEach((u) => URL.revokeObjectURL(u))
+  }, [])
+
+  const handleSelectMany = useCallback((files: File[]) => {
+    setItems((prev) => {
+      revokeAll(prev.map((p) => p.previewUrl))
+      return toItems(files)
+    })
+    setEstimatedTotalSize(null)
+  }, [revokeAll, toItems])
+
+  // Backward compatibility: if DropZone calls onSelect (single file), treat as replace-all with one.
   const handleSelect = useCallback((f: File) => {
-    if (previewUrl) URL.revokeObjectURL(previewUrl)
-    setFile(f)
-    setPreviewUrl(URL.createObjectURL(f))
-    setCompressedSize(null)
-    setEstimatedSize(null)
-  }, [previewUrl])
+    handleSelectMany([f])
+  }, [handleSelectMany])
+
+  useEffect(() => () => {
+    revokeAll(previewRef.current)
+  }, [revokeAll])
 
   // 滑动质量时防抖计算并展示对应压缩大小
   useEffect(() => {
-    if (!file) {
-      setEstimatedSize(null)
+    if (items.length === 0) {
+      setEstimatedTotalSize(null)
       return
     }
     const version = ++estimateVersionRef.current
     setEstimating(true)
     const t = setTimeout(async () => {
       try {
-        const blob = await compressImage(file, quality)
+        let sum = 0
+        for (const it of items) {
+          const blob = await compressImage(it.file, quality)
+          if (version !== estimateVersionRef.current) return
+          sum += blob.size
+        }
         if (version === estimateVersionRef.current) {
-          setEstimatedSize(blob.size)
+          setEstimatedTotalSize(sum)
         }
       } catch {
-        if (version === estimateVersionRef.current) setEstimatedSize(null)
+        if (version === estimateVersionRef.current) setEstimatedTotalSize(null)
       } finally {
         if (version === estimateVersionRef.current) setEstimating(false)
       }
     }, ESTIMATE_DEBOUNCE_MS)
     return () => clearTimeout(t)
-  }, [file, quality])
+  }, [items, quality])
 
   const handleCompress = async () => {
-    if (!file) return
-    setCompressing(true)
+    if (items.length === 0) return
+    setCompressing({ running: true, done: 0, total: items.length })
     try {
-      const blob = await compressImage(file, quality)
-      setCompressedSize(blob.size)
-      setEstimatedSize(blob.size)
-      const name = file.name.replace(/\.[^.]+$/, '') + '-compressed.jpg'
-      downloadBlob(blob, name)
+      for (let i = 0; i < items.length; i++) {
+        const { file } = items[i]
+        const blob = await compressImage(file, quality)
+        const name = file.name.replace(/\.[^.]+$/, '') + '-compressed.jpg'
+        downloadBlob(blob, name)
+        setCompressing((s) => ({ ...s, done: i + 1 }))
+      }
     } finally {
-      setCompressing(false)
+      setCompressing((s) => ({ ...s, running: false }))
     }
   }
+
+  const handleReplaceOne = useCallback((id: string, file: File) => {
+    setItems((prev) => {
+      const next = prev.map((it) => {
+        if (it.id !== id) return it
+        URL.revokeObjectURL(it.previewUrl)
+        return { ...it, file, previewUrl: URL.createObjectURL(file) }
+      })
+      return next
+    })
+  }, [])
+
+  const handleRemoveOne = useCallback((id: string) => {
+    setItems((prev) => {
+      const target = prev.find((p) => p.id === id)
+      if (target) URL.revokeObjectURL(target.previewUrl)
+      return prev.filter((p) => p.id !== id)
+    })
+  }, [])
 
   return (
     <div className="flex flex-col items-center justify-center w-full">
       <DropZone
         title="Drag and drop your image here"
-        subtitle={`Support for JPEG, PNG and WebP files up to ${MAX_MB}MB`}
+        subtitle={items.length ? `${items.length} image(s) selected — select again to replace` : `Support for JPEG, PNG and WebP files up to ${MAX_MB}MB`}
         accept={ACCEPT}
         maxSize={MAX_MB * 1024 * 1024}
         onSelect={handleSelect}
+        onSelectMany={handleSelectMany}
+        multiple
         previewUrl={previewUrl}
       />
-      {file && (
+      {total > 0 && (
         <div className="flex flex-col items-start pt-[20px] w-full">
           <div className="flex flex-col gap-5 w-full">
+            <div className="w-full flex justify-center">
+              <div className="max-w-[800px] w-full">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                  {items.map((it) => (
+                    <div key={it.id} className="bg-white rounded-2xl border border-border overflow-hidden">
+                      <div className="aspect-square w-full bg-muted-bg flex items-center justify-center p-2">
+                        <img src={it.previewUrl} alt={it.file.name} className="max-w-full max-h-full w-auto h-auto object-contain" />
+                      </div>
+                      <div className="p-2 flex flex-col gap-2">
+                        <div className="text-[12px] font-medium text-primary truncate" title={it.file.name}>{it.file.name}</div>
+                        <div className="flex gap-2">
+                          <label className="flex-1 cursor-pointer">
+                            <input
+                              type="file"
+                              accept={ACCEPT}
+                              className="sr-only"
+                              onChange={(e) => {
+                                const f = e.target.files?.[0]
+                                if (f) handleReplaceOne(it.id, f)
+                                e.target.value = ''
+                              }}
+                            />
+                            <span className="w-full inline-flex items-center justify-center px-3 py-1.5 rounded-full text-[12px] font-bold border border-border bg-white hover:bg-muted-bg text-primary">
+                              Replace
+                            </span>
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveOne(it.id)}
+                            className="px-3 py-1.5 rounded-full text-[12px] font-bold border border-border bg-white hover:bg-muted-bg text-primary"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
             <div className="flex flex-wrap items-center gap-x-6 gap-y-1 text-[14px] text-muted">
-              <span>Original: <strong className="text-primary font-semibold">{formatSize(file.size)}</strong></span>
-              {(estimatedSize !== null || estimating) && (
+              <span>Original total: <strong className="text-primary font-semibold">{formatSize(originalTotalSize)}</strong></span>
+              {(estimatedTotalSize !== null || estimating) && (
                 <span>
                   {estimating ? (
                     'Calculating…'
                   ) : (
-                    <>Compressed: <strong className="text-primary font-semibold">{formatSize(estimatedSize ?? 0)}</strong></>
+                    <>Compressed total: <strong className="text-primary font-semibold">{formatSize(estimatedTotalSize ?? 0)}</strong></>
                   )}
                 </span>
               )}
@@ -156,10 +254,10 @@ export default function Compress() {
               <button
                 type="button"
                 onClick={handleCompress}
-                disabled={compressing}
+                disabled={compressing.running}
                 className="bg-primary px-8 py-2.5 rounded-full font-bold text-[14px] text-white shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] disabled:opacity-60"
               >
-                {compressing ? 'Compressing…' : 'Compress Image'}
+                {compressing.running ? `Compressing… ${compressing.done}/${compressing.total}` : `Compress Now (${total})`}
               </button>
             </div>
           </div>
