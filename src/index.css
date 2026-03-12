@@ -9,7 +9,39 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* 4 个页面渐变背景（多层线性 + 径向，低饱和、结构更复杂），已恢复为静态背景 */
+/* 隐藏自定义滚动容器的滚动条（如首页横向卡片），但仍可滚动 */
+.no-scrollbar {
+  -ms-overflow-style: none; /* IE / Edge */
+  scrollbar-width: none; /* Firefox */
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none; /* Chrome / Safari */
+}
+
+@keyframes card-breathe-opacity {
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 0.1;
+  }
+}
+
+.card-breathe-opacity {
+  animation: card-breathe-opacity 6s ease-in-out infinite;
+  will-change: opacity;
+}
+
+/* 首页与 4 个子页面的渐变背景（多层线性 + 径向，低饱和、结构更复杂） */
+.bg-page-home {
+  background-color: #f9fafb;
+  background-image:
+    radial-gradient(ellipse 78% 58% at 10% 20%, rgba(202, 212, 255, 0.6) 0%, transparent 55%),
+    radial-gradient(ellipse 82% 68% at 85% 80%, rgba(191, 219, 254, 0.5) 0%, transparent 52%),
+    linear-gradient(135deg, #f9fafb 0%, #eef2ff 32%, #f3f4f6 60%, #fefefe 100%);
+}
+
 .bg-page-compress {
   background-color: #faf9fc;
   background-image:
