@@ -23,10 +23,14 @@ export default function Home() {
   const cardRefs = useRef<(HTMLDivElement | null)[]>([])
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const rafRef = useRef<number | null>(null)
+  const floatRafRef = useRef<number | null>(null)
 
   const tracks = [
     '/audio/时空储蓄罐-Merry-2026.aac',
     '/audio/LAKEY-INSPIRED_DC-Prince.aac',
+    '/audio/Elyonbeats - Summer Train.m4a',
+    '/audio/frank Sativa - dancing in the rain.m4a',
+    '/audio/Dim Gray - Bucky Pizzarelli-Serenade in blue（Whispering remix）（小滔 remix）.mp3',
   ]
 
   useEffect(() => {
@@ -37,7 +41,7 @@ export default function Home() {
       const containerRect = el.getBoundingClientRect()
       const centerX = containerRect.left + containerRect.width / 2
 
-      cardRefs.current.forEach((card) => {
+      cardRefs.current.forEach((card, index) => {
         if (!card) return
 
         const rect = card.getBoundingClientRect()
@@ -48,12 +52,27 @@ export default function Home() {
         const t = Math.max(-1, Math.min(1, dx / 320))
         const abs = Math.abs(t)
 
-        const rotateY = t * -28
-        const translateZ = -abs * 220
-        const translateY = abs * 18
-        const scale = 1 - abs * 0.22
+        let rotateY = t * -28
+        let translateZ = -abs * 220
+        let translateY = abs * 18
+        let scale = 1 - abs * 0.22
 
-        card.style.transform = `perspective(900px) translateZ(${translateZ}px) translateY(${translateY}px) rotateY(${rotateY}deg) scale(${scale})`
+        // 未选中卡片：加强 3D 透视感，显得更远更有角度
+        if (index !== virtualIndex) {
+          rotateY *= 1.25
+          translateZ *= 1.3
+          translateY *= 1.15
+          scale = 1 - abs * 0.28
+        }
+
+        const baseTransform = `perspective(900px) translateZ(${translateZ}px) translateY(${translateY}px) rotateY(${rotateY}deg) scale(${scale})`
+
+        // 记录基础 transform，供鼠标悬停时叠加 3D 漂浮效果
+        const dataset = card.dataset as any
+        dataset.baseTransform = baseTransform
+        const hoverTransform = dataset.hoverTransform ?? ''
+
+        card.style.transform = `${baseTransform}${hoverTransform}`
         card.style.transformStyle = 'preserve-3d'
       })
     }
@@ -153,26 +172,17 @@ export default function Home() {
     }
   }, [virtualIndex])
 
+  // hover 交互已移除；播放时的 3D 漂浮由下方 effect 负责叠加/清理
+
   useEffect(() => {
     // 选中卡片 + 已开启且处于播放状态时自动播放
-    if (!audioEnabled) {
-      const audio = audioRef.current
-      if (audio) {
-        audio.pause()
-      }
-      return
-    }
-
-    if (!isPlaying) {
-      const audio = audioRef.current
-      if (audio) {
-        audio.pause()
-      }
-      return
-    }
-
     const audio = audioRef.current
     if (!audio) return
+
+    if (!audioEnabled || !isPlaying) {
+      audio.pause()
+      return
+    }
 
     const baseIndex = ((virtualIndex % TOTAL) + TOTAL) % TOTAL
     const src = tracks[baseIndex] ?? tracks[baseIndex % tracks.length]
@@ -186,7 +196,7 @@ export default function Home() {
     void audio.play().catch(() => {
       // 忽略浏览器自动播放限制
     })
-  }, [audioEnabled, virtualIndex])
+  }, [audioEnabled, isPlaying, virtualIndex])
 
   useEffect(() => {
     return () => {
@@ -246,14 +256,85 @@ export default function Home() {
     src: images[i % images.length],
   }))
 
+  const normalizedIndex = ((virtualIndex % TOTAL) + TOTAL) % TOTAL
+
+  const accentGradients = [
+    'radial-gradient(ellipse 65% 45% at 16% 18%, rgba(96, 165, 250, 0.45), transparent 60%)',
+    'radial-gradient(ellipse 65% 45% at 82% 22%, rgba(74, 222, 128, 0.4), transparent 60%)',
+    'radial-gradient(ellipse 65% 45% at 18% 80%, rgba(244, 114, 182, 0.42), transparent 60%)',
+    'radial-gradient(ellipse 70% 50% at 84% 72%, rgba(249, 168, 212, 0.45), transparent 60%)',
+    'radial-gradient(ellipse 70% 52% at 50% 16%, rgba(251, 191, 36, 0.4), transparent 60%)',
+  ]
+
+  const accentGradient = accentGradients[normalizedIndex % accentGradients.length]
+ 
+  useEffect(() => {
+    // 播放音乐时，给当前选中卡片叠加自动循环的 3D 漂浮动效（不需要鼠标 hover）
+    if (!isPlaying) {
+      if (floatRafRef.current != null) {
+        window.cancelAnimationFrame(floatRafRef.current)
+        floatRafRef.current = null
+      }
+      const card = cardRefs.current[virtualIndex]
+      if (card) {
+        const dataset = card.dataset as any
+        dataset.hoverTransform = ''
+        const baseTransform = dataset.baseTransform ?? ''
+        card.style.transform = baseTransform
+      }
+      return
+    }
+
+    const start = performance.now()
+    const tick = (now: number) => {
+      const card = cardRefs.current[virtualIndex]
+      if (card) {
+        const t = (now - start) / 1000
+        const tiltX = Math.sin(t * 1.2) * 4
+        const tiltY = Math.cos(t * 1.1) * 5
+        // 不再改变 Z 轴距离，避免看起来有放大缩小
+        const hoverTransform = ` rotateX(${tiltX}deg) rotateY(${tiltY}deg)`
+
+        const dataset = card.dataset as any
+        dataset.hoverTransform = hoverTransform
+        const baseTransform = dataset.baseTransform ?? ''
+        card.style.transform = `${baseTransform}${hoverTransform}`
+      }
+
+      floatRafRef.current = window.requestAnimationFrame(tick)
+    }
+
+    floatRafRef.current = window.requestAnimationFrame(tick)
+    return () => {
+      if (floatRafRef.current != null) {
+        window.cancelAnimationFrame(floatRafRef.current)
+        floatRafRef.current = null
+      }
+      const card = cardRefs.current[virtualIndex]
+      if (card) {
+        const dataset = card.dataset as any
+        dataset.hoverTransform = ''
+        const baseTransform = dataset.baseTransform ?? ''
+        card.style.transform = baseTransform
+      }
+    }
+  }, [isPlaying, virtualIndex])
+
   return (
     <>
       <div
+        className="pointer-events-none absolute inset-0 z-0 transition-opacity duration-700"
+        style={{
+          backgroundImage: accentGradient,
+          mixBlendMode: 'soft-light',
+        }}
+      />
+      <div
         ref={scrollRef}
         onPointerDown={enableAudio}
-        className="absolute inset-x-0 top-[180px] overflow-x-auto no-scrollbar pt-[50px]"
+        className="absolute inset-x-0 top-[180px] overflow-x-auto overflow-y-visible no-scrollbar pt-[50px] z-10"
       >
-        <div className="w-[2640px] mx-auto flex items-center gap-[60px] py-[20px] h-[312px]">
+        <div className="w-[2640px] mx-auto flex items-center gap-[60px] py-[20px] h-[352px]">
           {cards.map((c, i) => {
             const isActive = i === virtualIndex
             const breathe = isPlaying && !isActive
@@ -292,7 +373,7 @@ export default function Home() {
             type="button"
             onClick={togglePlay}
             aria-label={isPlaying ? 'Pause' : 'Play'}
-            className="relative z-10 w-[44px] h-[44px] rounded-full flex items-center justify-center bg-[#1f2937] text-[#e5e7eb] hover:bg-black/80 transition-colors shadow-lg"
+            className="relative z-10 w-[44px] h-[44px] rounded-full flex items-center justify-center bg-transparent text-[#e5e7eb]"
           >
             <span className="text-[20px] leading-none select-none">
               {isPlaying ? '⏸' : '▶'}
@@ -307,18 +388,26 @@ export default function Home() {
             type="button"
             onClick={handlePrev}
             aria-label="Previous card"
-            className="absolute left-[22px] top-1/2 -translate-y-1/2 w-[32px] h-[32px] rounded-full flex items-center justify-center text-[#6b7280] hover:text-white transition-colors"
+            className="absolute left-0 top-1/2 -translate-y-1/2 w-[32px] h-[32px] rounded-full flex items-center justify-center text-[#6b7280] hover:text-white transition-colors"
           >
-            <span className="text-[18px] leading-none select-none">⏴</span>
+            <img
+              src={`${import.meta.env.BASE_URL}Vector.svg`}
+              alt=""
+              className="w-[16px] h-[16px]"
+            />
           </button>
 
           <button
             type="button"
             onClick={handleNext}
             aria-label="Next card"
-            className="absolute right-[22px] top-1/2 -translate-y-1/2 w-[32px] h-[32px] rounded-full flex items-center justify-center text-[#6b7280] hover:text-white transition-colors"
+            className="absolute right-0 top-1/2 -translate-y-1/2 w-[32px] h-[32px] rounded-full flex items-center justify-center text-[#6b7280] hover:text-white transition-colors"
           >
-            <span className="text-[18px] leading-none select-none">⏵</span>
+            <img
+              src={`${import.meta.env.BASE_URL}Vector-1.svg`}
+              alt=""
+              className="w-[16px] h-[16px]"
+            />
           </button>
         </div>
       </div>
