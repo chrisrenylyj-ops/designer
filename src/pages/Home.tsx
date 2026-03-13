@@ -31,6 +31,12 @@ export default function Home() {
     '/audio/Elyonbeats - Summer Train.m4a',
     '/audio/frank Sativa - dancing in the rain.m4a',
     '/audio/Dim Gray - Bucky Pizzarelli-Serenade in blue（Whispering remix）（小滔 remix）.mp3',
+    '/audio/92914 - Miss The Time.m4a',
+    "/audio/DANIEL - and Forevermore.m4a",
+    '/audio/FunkyMo - 门.m4a',
+    '/audio/JVKE,Annika Wells - her (feat. Annika Wells).m4a',
+    "/audio/Saint Harison - why didn't you call.m4a",
+    '/audio/Various Artists - 卡农（木吉他独奏版）.m4a',
   ]
 
   useEffect(() => {
