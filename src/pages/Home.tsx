@@ -19,6 +19,7 @@ export default function Home() {
   )
   const [audioEnabled, setAudioEnabled] = useState(false)
   const [isPlaying, setIsPlaying] = useState(false)
+  const [activeGlow, setActiveGlow] = useState({ x: 50, y: 50 })
   const scrollRef = useRef<HTMLDivElement | null>(null)
   const cardRefs = useRef<(HTMLDivElement | null)[]>([])
   const audioRef = useRef<HTMLAudioElement | null>(null)
@@ -338,7 +339,7 @@ export default function Home() {
       <div
         ref={scrollRef}
         onPointerDown={enableAudio}
-        className="absolute inset-x-0 top-[180px] overflow-x-auto overflow-y-visible no-scrollbar pt-[50px] z-10"
+        className="absolute inset-x-0 top-[160px] overflow-x-auto overflow-y-visible no-scrollbar pt-[50px] z-10"
       >
         <div className="w-[2640px] mx-auto flex items-center gap-[60px] py-[20px] h-[352px]">
           {cards.map((c, i) => {
@@ -350,6 +351,18 @@ export default function Home() {
                 ref={(el) => {
                   cardRefs.current[i] = el
                 }}
+                onPointerMove={
+                  isActive
+                    ? (e) => {
+                        const rect = e.currentTarget.getBoundingClientRect()
+                        setActiveGlow({
+                          x: ((e.clientX - rect.left) / rect.width) * 100,
+                          y: ((e.clientY - rect.top) / rect.height) * 100,
+                        })
+                      }
+                    : undefined
+                }
+                onPointerLeave={isActive ? () => setActiveGlow({ x: 50, y: 50 }) : undefined}
                 className={[
                   // transform 由 scroll rAF 实时驱动，避免滞后手势；这里只保留其他属性的过渡
                   'relative shrink-0 overflow-hidden transition-[width,height,opacity,border-radius] duration-300 ease-out will-change-transform',
@@ -359,6 +372,15 @@ export default function Home() {
                     : 'w-[180px] h-[234px] rounded-[20px] opacity-50',
                 ].join(' ')}
               >
+                {isActive && (
+                  <div
+                    className="pointer-events-none absolute inset-0 rounded-[28px] z-10 transition-opacity duration-300"
+                    style={{
+                      background: `radial-gradient(circle 180px at ${activeGlow.x}% ${activeGlow.y}%, rgba(255,255,255,0.18), transparent 70%)`,
+                      mixBlendMode: 'screen',
+                    }}
+                  />
+                )}
                 <img
                   alt=""
                   src={c.src}
@@ -373,7 +395,7 @@ export default function Home() {
         </div>
       </div>
 
-      <div className="absolute bottom-[96px] left-1/2 -translate-x-1/2">
+      <div className="absolute bottom-[120px] left-1/2 -translate-x-1/2 z-20">
         <div className="relative w-[148px] h-[148px] rounded-full bg-[#111827] flex items-center justify-center">
           <button
             type="button"
